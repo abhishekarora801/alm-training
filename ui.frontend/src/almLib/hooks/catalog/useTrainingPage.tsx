@@ -509,7 +509,7 @@ export const useTrainingPage = (
             }
           }
           const trainingInstance = filterTrainingInstance(response, instanceId);
-          // check for matching catalog
+
           if (trainingInstance.state === RETIRED) {
             setCurrentState({
               trainingInstance: {} as PrimeLearningObjectInstance,
