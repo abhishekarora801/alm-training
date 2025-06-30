@@ -15,6 +15,7 @@ import { AppContextProvider } from "./contextProviders";
 import {
   ActiveFieldsContainter,
   ALMSkillComponent,
+  AbhishekEnrolledLearningObjects,
   ALMUserProfile,
   CommerceContextProvider,
   Portal,
@@ -80,6 +81,9 @@ const App = (props: any) => {
           </Portal>
           <Portal selector={mountingPoints.footerContainer}>
             <ALMFooter />
+          </Portal>
+          <Portal selector={mountingPoints.abhishekEnrolledLearningObjectsContainer}>
+            <AbhishekEnrolledLearningObjects />
           </Portal>
         </AppContextProvider>
       </CommerceContextProvider>

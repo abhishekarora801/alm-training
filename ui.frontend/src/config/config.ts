@@ -27,6 +27,7 @@ const mountingPoints = {
   mastHeadContainer: ".mastHead__container",
   categoryBrowserContainer: ".categoryBrowser__container",
   footerContainer: ".footer__container",
+  abhishekEnrolledLearningObjectsContainer: ".abhishekEnrolledLearningObjects__container"
 };
 
 (window as any).ALM = (window as any).ALM || {};
