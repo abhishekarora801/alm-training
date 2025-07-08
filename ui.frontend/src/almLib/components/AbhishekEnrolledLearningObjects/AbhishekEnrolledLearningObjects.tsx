@@ -35,8 +35,8 @@ const AbhishekEnrolledLearningObjects = () => {
         const params: QueryParams = 
         {   userId: id,
             'filter.loTypes': 'course',
-            'page[limit]': '20',
-            'filter.learnerState': 'enrolled',
+            'page[limit]': '100',
+            //'filter.learnerState': 'enrolled',
             'sort': 'name',
             'filter.ignoreEnhancedLP': 'true'
          };
