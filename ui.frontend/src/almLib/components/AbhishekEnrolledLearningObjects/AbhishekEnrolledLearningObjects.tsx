@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
+import axios from "axios";
+import { AlertType } from "../../common/Alert/AlertDialog";
+import { useAlert } from "../../common/Alert/useAlert";
 import styles from "./AbhishekEnrolledLearningObjects.module.css";
 import { getALMConfig } from "../../utils/global";
 import { QueryParams, RestAdapter } from "../../utils/restAdapter";
@@ -22,12 +25,21 @@ const AbhishekEnrolledLearningObjects = () => {
   const [learningObjects, setLearningObjects] = useState<PrimeLearningObject[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [apiCallInProgress, setApiCallInProgress] = useState<boolean>(false);
+  const [almAlert] = useAlert();
 
   useEffect(() => {
     const getEnrolledLearningObjects = async (id: string): Promise<JsonApiResponse | undefined> => {
       try {
         const baseApiUrl = getALMConfig().primeApiURL;
-        const params: QueryParams = { userId: id };
+        const params: QueryParams = 
+        {   userId: id,
+            'filter.loTypes': 'course',
+            'page[limit]': '20',
+            'filter.learnerState': 'enrolled',
+            'sort': 'name',
+            'filter.ignoreEnhancedLP': 'true'
+         };
 
         const response = await RestAdapter.get({
           url: `${baseApiUrl}/learningObjects?`,
@@ -90,9 +102,59 @@ const AbhishekEnrolledLearningObjects = () => {
       
       const fallbackImage = "https://img.freepik.com/free-vector/online-certification-illustration_23-2148575636.jpg?semt=ais_hybrid&w=740";
       
+      // Function to check course availability
+      const checkCourseAvailability = async (courseId: string, event: React.MouseEvent) => {
+        if (apiCallInProgress) {
+          return;
+        }
+        
+        // Prevent the default link behavior
+        event.preventDefault();
+        
+        setApiCallInProgress(true);
+        
+        try {
+          // Get the OAuth token from cookies
+          const almCpToken = getCookieByName("alm_cp_token");
+          
+          if (!almCpToken) {
+            almAlert(true, "Authentication token not found", AlertType.error, true);
+            setApiCallInProgress(false);
+            return;
+          }
+          
+          // Call the API with the course ID and authorization header
+          const apiUrl = `https://learningmanager.adobe.com/primeapi/v2/learningObjects/${encodeURIComponent(courseId)}`;
+          
+          const response = await axios.get(apiUrl, {
+            headers: {
+              'Accept': 'application/vnd.api+json',
+              'Authorization': `oauth ${almCpToken}`
+            }
+          });
+          
+          // Display success popup if API returns 200 OK
+          if (response.status === 200) {
+            almAlert(true, `Course ${courseId} is available!`, AlertType.success, true);
+          } else {
+            almAlert(true, `Failed to verify course ${courseId}. Status: ${response.status}`, AlertType.error, true);
+          }
+        } catch (error) {
+          // Display failure popup if API call fails
+          almAlert(true, "Failed to verify course availability", AlertType.error, true);
+          console.error("Error checking course availability:", error);
+        } finally {
+          setApiCallInProgress(false);
+        }
+      };
+
       return (
         <div key={index} className={styles.courseTile}>
-          <a href={courseUrl} className={styles.courseLink}>
+          <a 
+            href={courseUrl} 
+            className={styles.courseLink}
+            onClick={(e) => checkCourseAvailability(course.id, e)}
+          >
             <div className={styles.imageBanner}>
               <img 
                 src={course.imageUrl || fallbackImage} 
