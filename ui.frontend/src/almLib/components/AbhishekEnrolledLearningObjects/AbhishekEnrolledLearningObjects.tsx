@@ -118,7 +118,7 @@ const AbhishekEnrolledLearningObjects = () => {
           const almCpToken = getCookieByName("alm_cp_token");
           
           if (!almCpToken) {
-            almAlert(true, "Authentication token not found", AlertType.error, true);
+            almAlert(true, "AUTHENTICATION TOKEN NOT FOUND", AlertType.error, true);
             setApiCallInProgress(false);
             return;
           }
@@ -133,15 +133,16 @@ const AbhishekEnrolledLearningObjects = () => {
             }
           });
           
-          // Display success popup if API returns 200 OK
-          if (response.status === 200) {
-            almAlert(true, `Course ${courseId} is available!`, AlertType.success, true);
+          // Check if enrollment is present in the response
+          const courseName = response.data.data.attributes.localizedMetadata[0].name;
+          if (response.status === 200 && response.data.data.relationships.enrollment) {
+            almAlert(true, `COURSE ${courseName} IS AVAILABLE FOR YOU!`, AlertType.success, true);
           } else {
-            almAlert(true, `Failed to verify course ${courseId}. Status: ${response.status}`, AlertType.error, true);
+            almAlert(true, `COURSE ${courseName} IS NOT AVAILABLE FOR YOU!`, AlertType.error, true);
           }
         } catch (error) {
           // Display failure popup if API call fails
-          almAlert(true, "Failed to verify course availability", AlertType.error, true);
+          almAlert(true, "FAILED TO VERIFY COURSE AVAILABILITY", AlertType.error, true);
           console.error("Error checking course availability:", error);
         } finally {
           setApiCallInProgress(false);
