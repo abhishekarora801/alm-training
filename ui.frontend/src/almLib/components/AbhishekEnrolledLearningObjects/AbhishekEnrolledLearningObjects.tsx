@@ -26,6 +26,7 @@ const AbhishekEnrolledLearningObjects = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [apiCallInProgress, setApiCallInProgress] = useState<boolean>(false);
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [almAlert] = useAlert();
 
   useEffect(() => {
@@ -182,29 +183,151 @@ const AbhishekEnrolledLearningObjects = () => {
     });
   }, [learningObjects]);
 
+  // Filter courses based on search term
+  const filteredCourses = useMemo(() => {
+    if (!searchTerm.trim()) return learningObjects;
+    
+    return learningObjects.filter(course => {
+      if (!course.localizedMetadata || !course.localizedMetadata[0]) return false;
+      const metadata = course.localizedMetadata[0];
+      
+      return (
+        metadata.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        metadata.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    });
+  }, [learningObjects, searchTerm]);
+
   // UI rendering based on component state
   return (
     <div className={styles.container}>
       <h2>My Enrolled Learning Objects</h2>
       
-      {isLoading && (
-        <p className={styles.loadingMessage}>Loading your learning objects...</p>
-      )}
-      
-      {error && (
-        <p className={styles.errorMessage}>{error}</p>
-      )}
-      
-      {!isLoading && !error && (
-        <div>
-          {learningObjects.length > 0 ? (
-            <div className={styles.courseGrid}>
-              {courseGrid}
+      {isLoading ? (
+        <div className={styles.loadingMessage}>Loading your learning objects...</div>
+      ) : error ? (
+        <div className={styles.errorMessage}>
+          <span className={styles.errorIcon}>⚠️</span>
+          {error}
+        </div>
+      ) : (
+        <>
+          {learningObjects.length > 0 && (
+            <div className={styles.searchContainer}>
+              <input
+                type="text"
+                placeholder="Search courses..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={styles.searchInput}
+              />
+              {searchTerm && (
+                <span className={styles.resultsCount}>
+                  Found {filteredCourses.length} {filteredCourses.length === 1 ? 'course' : 'courses'}
+                </span>
+              )}
             </div>
+          )}
+          
+          {learningObjects.length > 0 ? (
+            filteredCourses.length > 0 ? (
+              <div className={styles.courseGrid}>
+                {filteredCourses.map((course: PrimeLearningObject, index: number) => {
+                  // Skip if no localized metadata is available
+                  if (!course.localizedMetadata || !course.localizedMetadata[0]) return null;
+                  
+                  const metadata = course.localizedMetadata[0];
+                  const instanceId = course.instances && course.instances[0] ? course.instances[0].id : "";
+                  const courseUrl = `http://localhost:4503/content/learning/language-masters/en/overview.html/trainingId/${course.id}/trainingInstanceId/${instanceId}/home.html`;
+                  
+                  const fallbackImage = "https://img.freepik.com/free-vector/online-certification-illustration_23-2148575636.jpg?semt=ais_hybrid&w=740";
+                  
+                  // Function to check course availability
+                  const checkCourseAvailability = async (courseId: string, event: React.MouseEvent) => {
+                    if (apiCallInProgress) {
+                      return;
+                    }
+                    
+                    // Prevent the default link behavior
+                    event.preventDefault();
+                    
+                    setApiCallInProgress(true);
+                    
+                    try {
+                      // Get the OAuth token from cookies
+                      const almCpToken = getCookieByName("alm_cp_token");
+                      
+                      if (!almCpToken) {
+                        almAlert(true, "AUTHENTICATION TOKEN NOT FOUND", AlertType.error, true);
+                        setApiCallInProgress(false);
+                        return;
+                      }
+                      
+                      // Call the API with the course ID and authorization header
+                      const apiUrl = `https://learningmanager.adobe.com/primeapi/v2/learningObjects/${encodeURIComponent(courseId)}`;
+                      
+                      const response = await axios.get(apiUrl, {
+                        headers: {
+                          'Accept': 'application/vnd.api+json',
+                          'Authorization': `oauth ${almCpToken}`
+                        }
+                      });
+                      
+                      // Check if enrollment is present in the response
+                      const courseName = response.data.data.attributes.localizedMetadata[0].name;
+                      if (response.status === 200 && response.data.data.relationships.enrollment) {
+                        almAlert(true, `COURSE ${courseName} IS AVAILABLE FOR YOU!`, AlertType.success, true);
+                      } else {
+                        almAlert(true, `COURSE ${courseName} IS NOT AVAILABLE FOR YOU!`, AlertType.error, true);
+                      }
+                    } catch (error) {
+                      // Display failure popup if API call fails
+                      almAlert(true, "FAILED TO VERIFY COURSE AVAILABILITY", AlertType.error, true);
+                      console.error("Error checking course availability:", error);
+                    } finally {
+                      setApiCallInProgress(false);
+                    }
+                  };
+                  
+                  return (
+                    <div key={index} className={styles.courseTile}>
+                      <a 
+                        href={courseUrl} 
+                        className={styles.courseLink}
+                        onClick={(e) => checkCourseAvailability(course.id, e)}
+                      >
+                        <div className={styles.imageBanner}>
+                          <img 
+                            src={course.imageUrl || fallbackImage} 
+                            alt={metadata.name || "Course image"} 
+                            className={styles.courseImage}
+                            onError={(e) => {
+                              e.currentTarget.src = fallbackImage;
+                            }}
+                          />
+                        </div>
+                        <div className={styles.courseInfo}>
+                          <h3 className={styles.courseTitle}>{metadata.name || "Untitled Course"}</h3>
+                          <p className={styles.courseDescription}>
+                            {metadata.description ? 
+                              (metadata.description.length > 100 ? 
+                                `${metadata.description.substring(0, 100)}...` : 
+                                metadata.description) : 
+                              "No description available"}
+                          </p>
+                        </div>
+                      </a>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className={styles.noCoursesMessage}>No courses match your search criteria.</p>
+            )
           ) : (
             <p className={styles.noCoursesMessage}>No enrolled courses found.</p>
           )}
-        </div>
+        </>
       )}
     </div>
   );
